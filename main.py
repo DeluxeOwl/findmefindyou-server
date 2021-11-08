@@ -28,8 +28,5 @@ async def get_root():
 
     # asyncpg has a very nice conversion to a dict
     # combined with fastapi = ❤️
-    entries = []
-    for entry in res:
-        entries.append(dict(entry))
-
+    entries = [dict(entry) for entry in res]
     return entries
