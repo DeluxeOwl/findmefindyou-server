@@ -1,6 +1,11 @@
+import hashlib
+import urllib
+
 import asyncpg
+import petname
 from dotenv import dotenv_values
 from fastapi import FastAPI
+from nanoid import generate
 
 config = dotenv_values(".env")
 app = FastAPI()
@@ -18,6 +23,18 @@ async def startup():
 @app.on_event('shutdown')
 async def shutdown():
     await conn.close()
+
+
+@app.get("/init")
+async def get_creds():
+    # maximum length is 18 for the name
+    display_name = petname.Generate(3, separator='-', letters=5)
+    unique_key = generate(size=12)
+
+    return {
+        'display_name': display_name,
+        'unique_key': unique_key,
+    }
 
 
 @app.get("/")
