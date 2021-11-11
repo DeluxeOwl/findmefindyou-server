@@ -40,7 +40,7 @@ async def get_creds():
 @app.get("/")
 async def get_root():
     res = await conn.fetch(
-        'select * from test'
+        'select * from coordinates where user_id=1',
     )
 
     # asyncpg has a very nice conversion to a dict
