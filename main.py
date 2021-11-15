@@ -4,11 +4,26 @@ import urllib
 import asyncpg
 import petname
 from dotenv import dotenv_values
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from nanoid import generate
 
 config = dotenv_values(".env")
 app = FastAPI()
+
+# !!! Note: this isn't meant to be secure
+# could also use a cache ...
+
+
+async def verify_token(x_key: str = Header(None)):
+    if x_key is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    res = await conn.fetchrow(
+        'select * from users where unique_key=$1',
+        x_key
+    )
+    if res is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return dict(res)
 
 
 @app.on_event('startup')
@@ -37,8 +52,14 @@ async def get_creds():
     }
 
 
+# You have to pass a valid key
+# curl -H "X-Key: your_key" http://127.0.0.1:8000/
 @app.get("/")
-async def get_root():
+async def get_root(user_info: dict = Depends(verify_token)):
+
+    print("If you reach here, you're authorized")
+    print(user_info)
+
     res = await conn.fetch(
         'select * from coordinates where user_id=1',
     )
