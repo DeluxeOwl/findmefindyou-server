@@ -18,8 +18,8 @@ adminer:
 
 migrate:
 	migrate -source file://migrations \
-	 		-database postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/postgres?sslmode=disable up
+	 		-database postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/postgres?sslmode=disable up
 
 migrate-down:
 	migrate -source file://migrations \
-	 		-database postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/postgres?sslmode=disable down
+	 		-database postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/postgres?sslmode=disable down
