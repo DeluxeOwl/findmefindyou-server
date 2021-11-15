@@ -16,6 +16,13 @@ values
 (3, 1),
 (1, 3);
 
+-- Not the case this time
+insert into pending_friends (receiver_id, sender_id, sent_at)
+values
+(1, 5, '2021-11-11 15:00:00.685'),
+(1, 4, '2021-11-11 15:00:00.685'),
+(2, 5, '2021-11-12 20:00:12.152');
+
 insert into coordinates (user_id, ts, coord_x, coord_y)
 values
 (1, '2021-11-11 14:00:00.685', 39.0685555, -42.5589567),

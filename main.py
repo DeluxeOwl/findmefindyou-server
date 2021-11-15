@@ -63,16 +63,32 @@ async def get_creds():
 
 @app.get("/friends")
 async def get_friends(user_info: dict = Depends(verify_token)):
+    # TODO: get last timestamp
     res = await conn.fetch(
         """
-        select * from users where user_id in
+        select display_name, avatar_url from users where user_id in
         (select f.friend_id 
             from users u 
             inner join friends f 
                 on u.user_id = f.user_id 
-        where unique_key=$1);
+        where u.user_id=$1);
         """,
-        user_info['unique_key']
+        user_info['user_id']
+    )
+
+    return [dict(entry) for entry in res]
+
+
+@app.get("/pending_friends")
+async def get_friends(user_info: dict = Depends(verify_token)):
+    res = await conn.fetch(
+        """
+        select usr.display_name, usr.avatar_url, pf.sent_at from pending_friends pf
+            inner join users usr
+            on pf.sender_id = usr.user_id
+        where pf.receiver_id = $1;
+        """,
+        user_info['user_id']
     )
 
     return [dict(entry) for entry in res]

@@ -1,4 +1,4 @@
-.PHONY: migrate pgcli adminer
+.PHONY: migrate pgcli adminer test-insert
 
 ifneq (,$(wildcard ./.env))
     include .env
@@ -8,6 +8,10 @@ endif
 pgcli:
 	psql --username=$(POSTGRES_USER) --host=$(POSTGRES_HOST) \
 	--port=$(POSTGRES_PORT)
+
+test-insert:
+	psql --username=$(POSTGRES_USER) --host=$(POSTGRES_HOST) \
+	--port=$(POSTGRES_PORT) --file test_values.sql
 
 adminer:
 	docker run --rm -ti --network host adminer

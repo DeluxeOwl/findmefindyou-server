@@ -33,6 +33,7 @@ create table friends (
 create table pending_friends (
     receiver_id integer not null,
     sender_id integer not null,
+    sent_at timestamp not null,
     constraint fk_receiverid
         foreign key (receiver_id)
             references users(user_id)
