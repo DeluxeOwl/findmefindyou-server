@@ -63,15 +63,22 @@ async def get_creds():
 
 @app.get("/friends")
 async def get_friends(user_info: dict = Depends(verify_token)):
-    # TODO: get last timestamp
     res = await conn.fetch(
         """
-        select display_name, avatar_url from users where user_id in
-        (select f.friend_id 
-            from users u 
-            inner join friends f 
-                on u.user_id = f.user_id 
-        where u.user_id=$1);
+        select usr.display_name, usr.avatar_url,
+        (select ts 
+            from coordinates coord 
+            where coord.user_id = usr.user_id
+            order by coord.coord_id desc
+            limit 1
+        )
+            from users usr
+        where usr.user_id in
+            (select f.friend_id 
+                from users u 
+                inner join friends f 
+                    on u.user_id = f.user_id 
+            where u.user_id=$1);
         """,
         user_info['user_id']
     )
