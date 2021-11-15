@@ -60,6 +60,17 @@ async def get_creds():
         'unique_key': unique_key,
     }
 
+# TODO: This query gets all the coordinates for a friend
+# select coord.ts, coord.coord_x, coord.coord_y
+#     from users usr
+#     inner join coordinates coord
+#     on usr.user_id = coord.user_id
+# where usr.user_id in
+#     (select f.friend_id
+#     from friends f
+#     where f.user_id = 1)
+# and usr.display_name = 'oddly-legal-jay';
+
 
 @app.get("/friends")
 async def get_friends(user_info: dict = Depends(verify_token)):
