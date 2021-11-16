@@ -8,8 +8,8 @@ create table users (
 create table coordinates (
     coord_id serial primary key,
     ts timestamp not null,
-    coord_x numeric not null,
-    coord_y numeric not null,
+    latitude numeric not null,
+    longitude numeric not null,
     user_id integer,
     constraint fk_userid
         foreign key (user_id)

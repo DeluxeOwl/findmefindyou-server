@@ -61,7 +61,7 @@ async def get_creds():
     }
 
 # TODO: This query gets all the coordinates for a friend
-# select coord.ts, coord.coord_x, coord.coord_y
+# select coord.ts, coord.latitude, coord.longitude
 #     from users usr
 #     inner join coordinates coord
 #     on usr.user_id = coord.user_id

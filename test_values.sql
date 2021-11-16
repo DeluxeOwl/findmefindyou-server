@@ -23,7 +23,7 @@ values
 (1, 4, '2021-11-11 15:00:00.685'),
 (2, 5, '2021-11-12 20:00:12.152');
 
-insert into coordinates (user_id, ts, coord_x, coord_y)
+insert into coordinates (user_id, ts, latitude, longitude)
 values
 (1, '2021-11-11 14:00:00.685', 39.0685555, -42.5589567),
 (1, '2021-11-11 14:00:03.645', 56.0613555, -40.5589567),
