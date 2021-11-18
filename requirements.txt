@@ -4,3 +4,5 @@ asyncpg
 python-dotenv
 nanoid
 petname
+python-multipart
+aiofiles

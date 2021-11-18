@@ -4,11 +4,17 @@ import urllib
 import asyncpg
 import petname
 from dotenv import dotenv_values
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File, status
+from fastapi.staticfiles import StaticFiles
 from nanoid import generate
+import aiofiles
 
 config = dotenv_values(".env")
 app = FastAPI()
+
+# Mount the image directory, you can download using
+# wget http://<uvicorn_url>/img/<image_name>
+app.mount("/img", StaticFiles(directory="img"))
 
 
 async def verify_token(x_key: str = Header(None)):
@@ -59,6 +65,19 @@ async def get_creds():
         'display_name': display_name,
         'unique_key': unique_key,
     }
+
+
+# TODO: add authorization to this, set the field in db for the user
+# don't store the whole url in the db, just the path img/
+@app.post("/upload_avatar")
+async def post_avatar(photo: UploadFile = File(...)):
+    location = f"img/{photo.filename}"
+    async with aiofiles.open(location, 'wb') as out_avatar:
+        content = await photo.read()
+        await out_avatar.write(content)
+
+    return {"result": "ok"}
+
 
 # TODO: This query gets all the coordinates for a friend
 # select coord.ts, coord.latitude, coord.longitude
