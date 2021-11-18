@@ -5,6 +5,7 @@ import asyncpg
 import petname
 from dotenv import dotenv_values
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File, status
+from models.account_req import AccountReq
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 import aiofiles
@@ -67,8 +68,22 @@ async def get_creds():
     }
 
 
+@app.post("/create_account")
+async def post_account(req: AccountReq):
+    await conn.execute(
+        """
+        insert into users (display_name, unique_key, avatar_url)
+        values
+        ($1, $2, 'img/default_avatar.png');
+        """,
+        req.display_name, req.unique_key
+    )
+    return {"result": "ok"}
+
 # TODO: add authorization to this, set the field in db for the user
 # don't store the whole url in the db, just the path img/
+
+
 @app.post("/upload_avatar")
 async def post_avatar(photo: UploadFile = File(...)):
     location = f"img/{photo.filename}"
