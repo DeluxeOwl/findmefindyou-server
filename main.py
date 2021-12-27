@@ -85,14 +85,27 @@ async def post_account(req: AccountReq):
 
 
 @app.post("/upload_avatar")
-async def post_avatar(photo: UploadFile = File(...)):
+async def post_avatar(photo: UploadFile = File(...), user_info: dict = Depends(verify_token)):
     location = f"img/{photo.filename}"
     async with aiofiles.open(location, 'wb') as out_avatar:
         content = await photo.read()
         await out_avatar.write(content)
 
-    return {"result": "ok"}
+    await conn.execute(
+        """
+        update users
+        set avatar_url = $1
+        where user_id = $2;
+        """,
+        location, user_info['user_id']
+    )
 
+    return {"avatar_url": location}
+
+
+@app.get("/avatar_location")
+async def get_avatar(user_info: dict = Depends(verify_token)):
+    return {"avatar_url": user_info["avatar_url"]}
 
 # TODO: This query gets all the coordinates for a friend
 # select coord.ts, coord.latitude, coord.longitude
