@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class AccountReq(BaseModel):
@@ -6,10 +7,10 @@ class AccountReq(BaseModel):
     unique_key: str
 
 
-# TODO: add optional fields: starting time and end time
-# validate that starting time is no more than one week ago
 class FriendCoordReq(BaseModel):
     friend_name: str
+    start_date: Optional[str]
+    end_date: Optional[str]
 
 
 class FriendDeleteReq(BaseModel):
