@@ -5,7 +5,7 @@ import asyncpg
 import petname
 from dotenv import dotenv_values
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File, status
-from models.account_req import AccountReq
+from models.request_models import AccountReq, FriendCoordReq
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 import aiofiles
@@ -108,15 +108,26 @@ async def get_avatar(user_info: dict = Depends(verify_token)):
     return {"avatar_url": user_info["avatar_url"]}
 
 # TODO: This query gets all the coordinates for a friend
-# select coord.ts, coord.latitude, coord.longitude
-#     from users usr
-#     inner join coordinates coord
-#     on usr.user_id = coord.user_id
-# where usr.user_id in
-#     (select f.friend_id
-#     from friends f
-#     where f.user_id = 1)
-# and usr.display_name = 'oddly-legal-jay';
+
+
+@app.post("/friend_coords")
+async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
+    res = await conn.fetch(
+        """
+        select coord.ts, coord.latitude, coord.longitude
+            from users usr
+            inner join coordinates coord
+            on usr.user_id = coord.user_id
+        where usr.user_id in
+            (select f.friend_id
+            from friends f
+            where f.user_id = $1)
+        and usr.display_name = $2;
+        """,
+        user_info['user_id'], req.friend_name
+    )
+    print(res)
+    return [dict(entry) for entry in res]
 
 
 @app.get("/friends")
