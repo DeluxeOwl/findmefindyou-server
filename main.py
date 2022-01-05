@@ -80,9 +80,6 @@ async def post_account(req: AccountReq):
     )
     return {"result": "ok"}
 
-# TODO: add authorization to this, set the field in db for the user
-# don't store the whole url in the db, just the path img/
-
 
 @app.post("/upload_avatar")
 async def post_avatar(photo: UploadFile = File(...), user_info: dict = Depends(verify_token)):
@@ -107,9 +104,8 @@ async def post_avatar(photo: UploadFile = File(...), user_info: dict = Depends(v
 async def get_avatar(user_info: dict = Depends(verify_token)):
     return {"avatar_url": user_info["avatar_url"]}
 
-# TODO: This query gets all the coordinates for a friend
 
-
+# TODO: add a filter for coordinates, max one week ago
 @app.post("/friend_coords")
 async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
     res = await conn.fetch(
@@ -128,6 +124,36 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     )
     print(res)
     return [dict(entry) for entry in res]
+
+
+@app.delete("/delete_friend")
+async def delete_friend(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
+    # this is bad practice, you should do it in a transaction
+    async with conn.transaction():
+        friend_id = await conn.fetchval(
+            """
+            select f.friend_id from friends f
+                inner join users usr
+                on f.friend_id = usr.user_id
+                where f.user_id = $1
+            and usr.display_name = $2
+            """,
+            user_info['user_id'], req.friend_name
+        )
+
+        if friend_id is None:
+            return {"result": "error"}
+
+        await conn.execute(
+            """
+            delete from friends
+            where user_id = $1 and friend_id = $2
+            or user_id = $2 and friend_id = $1
+            """,
+            user_info['user_id'], friend_id
+        )
+
+        return {"result": "ok"}
 
 
 @app.get("/friends")
