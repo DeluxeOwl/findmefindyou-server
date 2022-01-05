@@ -5,7 +5,7 @@ import asyncpg
 import petname
 from dotenv import dotenv_values
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File, status
-from models.request_models import AccountReq, FriendCoordReq
+from models.request_models import AccountReq, FriendCoordReq, FriendDeleteReq
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 import aiofiles
@@ -127,7 +127,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
 
 
 @app.delete("/delete_friend")
-async def delete_friend(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
+async def delete_friend(req: FriendDeleteReq, user_info: dict = Depends(verify_token)):
     # this is bad practice, you should do it in a transaction
     async with conn.transaction():
         friend_id = await conn.fetchval(
