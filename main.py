@@ -174,7 +174,10 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
         "and coord.ts > NOW() - INTERVAL '7 days'",
         user_info['user_id'], req.friend_name
     )
-    return [dict(entry) for entry in res]
+    res_dict = [dict(entry) for entry in res]
+    for entry in res_dict:
+        entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+    return res_dict
 
 
 @app.delete("/delete_friend")
@@ -278,7 +281,8 @@ async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(ver
         """,
         user_info['user_id']
     )
-
+    # date 'parsing' lmao ⟶ gives the date like this 2022-01-07 14:00:00.685
+    latest_ts = ' '.join(str(latest_ts).split('T'))[:-3]
     return {"result": latest_ts}
 
 
