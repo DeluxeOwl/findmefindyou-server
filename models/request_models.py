@@ -13,8 +13,13 @@ class FriendCoordReq(BaseModel):
     end_date: Optional[str]
 
 
-class FriendDeleteReq(BaseModel):
+class FriendAddDeleteReq(BaseModel):
     friend_name: str
+
+
+class AcceptDeclineFriendReq(BaseModel):
+    friend_name: str
+    action: str
 
 
 class UploadCoordReq(BaseModel):

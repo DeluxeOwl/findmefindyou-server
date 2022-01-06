@@ -11,8 +11,8 @@ from fastapi import (Depends, FastAPI, File, Header, HTTPException, UploadFile,
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 
-from models.request_models import (AccountReq, FriendCoordReq, FriendDeleteReq,
-                                   UploadCoordReq)
+from models.request_models import (AccountReq, FriendCoordReq, FriendAddDeleteReq,
+                                   UploadCoordReq, AcceptDeclineFriendReq)
 
 from typing import List
 
@@ -181,7 +181,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
 
 
 @app.delete("/delete_friend")
-async def delete_friend(req: FriendDeleteReq, user_info: dict = Depends(verify_token)):
+async def delete_friend(req: FriendAddDeleteReq, user_info: dict = Depends(verify_token)):
     # this is bad practice, you should do it in a transaction
     async with conn.transaction():
         friend_id = await conn.fetchval(
@@ -253,6 +253,78 @@ async def get_friends(user_info: dict = Depends(verify_token)):
     return res_dict
 
 
+@app.post("/friend_req")
+async def friend_req(req: AcceptDeclineFriendReq, user_info: dict = Depends(verify_token)):
+
+    if req.action != 'accept' and req.action != 'decline':
+        print("got here")
+        return {"result": "error"}
+
+    sender_id = await conn.fetchval(
+        """
+        select p.sender_id from pending_friends p
+            inner join users u
+            on u.user_id = p.sender_id
+        where p.receiver_id = $1 and u.display_name = $2
+        """,
+        user_info['user_id'], req.friend_name
+    )
+
+    if sender_id is None:
+        return {"result": "error"}
+    async with conn.transaction():
+        if req.action == 'accept':
+            await conn.execute(
+                """
+                delete from pending_friends
+                where receiver_id = $1 and sender_id = $2
+                """,
+                user_info['user_id'], sender_id
+            )
+            await conn.execute(
+                """
+                insert into friends (user_id, friend_id)
+                values
+                ($1, $2),
+                ($2, $1);
+                """,
+                user_info['user_id'], sender_id
+            )
+        if req.action == 'decline':
+            await conn.execute(
+                """
+                delete from pending_friends
+                where receiver_id = $1 and sender_id = $2
+                """,
+                user_info['user_id'], sender_id
+            )
+
+    return {"result": "ok"}
+
+
+@app.post("/send_friend_req")
+async def send_friend_req(req: FriendAddDeleteReq, user_info: dict = Depends(verify_token)):
+    receiver_id = await conn.fetchval(
+        """
+        select user_id 
+        from users
+        where display_name = $1
+        """,
+        req.friend_name
+    )
+    if receiver_id is None:
+        return {"result": "error"}
+    await conn.execute(
+        """
+        insert into pending_friends (receiver_id, sender_id, sent_at)
+        values ($1, $2, $3)
+        """,
+        receiver_id, user_info['user_id'], datetime.now()
+    )
+
+    return {"result": "ok"}
+
+
 @app.post("/upload_coords")
 async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(verify_token)):
     if not req:
@@ -269,7 +341,7 @@ async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(ver
                 ($1, $2, $3, $4);
                 """,
                     user_info['user_id'], datetime.strptime(
-                        entry.timestamp, '%Y-%m-%d %H:%M:%S.%f'), entry.latitude, entry.longitude
+                        entry.timestamp,), entry.latitude, entry.longitude
                 )
             except Exception:
                 return {"result": "error"}
