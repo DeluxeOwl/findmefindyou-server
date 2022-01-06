@@ -246,8 +246,11 @@ async def get_friends(user_info: dict = Depends(verify_token)):
         """,
         user_info['user_id']
     )
+    res_dict = [dict(entry) for entry in res]
 
-    return [dict(entry) for entry in res]
+    for entry in res_dict:
+        entry['sent_at'] = ' '.join(str(entry['sent_at']).split('T'))[:-3]
+    return res_dict
 
 
 @app.post("/upload_coords")
