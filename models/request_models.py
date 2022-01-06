@@ -15,3 +15,9 @@ class FriendCoordReq(BaseModel):
 
 class FriendDeleteReq(BaseModel):
     friend_name: str
+
+
+class UploadCoordReq(BaseModel):
+    timestamp: str
+    latitude: float
+    longitude: float

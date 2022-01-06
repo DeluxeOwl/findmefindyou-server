@@ -11,7 +11,10 @@ from fastapi import (Depends, FastAPI, File, Header, HTTPException, UploadFile,
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 
-from models.request_models import AccountReq, FriendCoordReq, FriendDeleteReq
+from models.request_models import (AccountReq, FriendCoordReq, FriendDeleteReq,
+                                   UploadCoordReq)
+
+from typing import List
 
 config = dotenv_values(".env")
 app = FastAPI()
@@ -242,6 +245,41 @@ async def get_friends(user_info: dict = Depends(verify_token)):
     )
 
     return [dict(entry) for entry in res]
+
+
+@app.post("/upload_coords")
+async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(verify_token)):
+    if not req:
+        return {"result": "empty request"}
+
+    # transaction doesnt seem to work but oh well
+    for entry in req:
+        async with conn.transaction():
+            try:
+                await conn.execute(
+                    """
+                insert into coordinates (user_id, ts, latitude, longitude)
+                values
+                ($1, $2, $3, $4);
+                """,
+                    user_info['user_id'], datetime.strptime(
+                        entry.timestamp, '%Y-%m-%d %H:%M:%S.%f'), entry.latitude, entry.longitude
+                )
+            except Exception:
+                return {"result": "error"}
+
+    # get latest ts and return it
+    latest_ts = await conn.fetchval(
+        """
+        select ts from coordinates 
+            where user_id = $1 
+        order by coord_id desc 
+        limit 1;
+        """,
+        user_info['user_id']
+    )
+
+    return {"result": latest_ts}
 
 
 @app.get("/")
