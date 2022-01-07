@@ -42,6 +42,8 @@ async def verify_token(x_key: str = Header(None)):
     return dict(res)
 
 
+# TODO: yeah, I got some weird error once about not being able to execute multiple operations
+# should use a pool
 @app.on_event('startup')
 async def startup():
     """
@@ -118,7 +120,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     end_date = None
 
     query_string = """
-    select coord.ts, coord.latitude, coord.longitude
+    select distinct(coord.ts), coord.latitude, coord.longitude
         from users usr
         inner join coordinates coord
         on usr.user_id = coord.user_id
@@ -155,7 +157,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     if start_date and end_date is None:
         res = await conn.fetch(
             query_string +
-            "and coord.ts >= $3",
+            "and coord.ts >= $3 order by ts",
             user_info['user_id'], req.friend_name, start_date
         )
         return [dict(entry) for entry in res]
@@ -163,7 +165,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     if start_date and end_date:
         res = await conn.fetch(
             query_string +
-            'and coord.ts >= $3 and coord.ts <= $4',
+            'and coord.ts >= $3 and coord.ts <= $4 order by ts',
             user_info['user_id'], req.friend_name, start_date, end_date
         )
         return [dict(entry) for entry in res]
@@ -171,7 +173,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     # get maximum from the last 7 days
     res = await conn.fetch(
         query_string +
-        "and coord.ts > NOW() - INTERVAL '7 days'",
+        "and coord.ts > NOW() - INTERVAL '7 days' order by ts",
         user_info['user_id'], req.friend_name
     )
     res_dict = [dict(entry) for entry in res]
@@ -253,6 +255,21 @@ async def get_pending_friends(user_info: dict = Depends(verify_token)):
     return res_dict
 
 
+@app.get("/pending_friends_number")
+async def get_pending_friends_number(user_info: dict = Depends(verify_token)):
+    notif_nr = await conn.fetchval(
+        """
+        select count(*) from pending_friends pf
+            inner join users usr
+            on pf.sender_id = usr.user_id
+        where pf.receiver_id = $1;
+        """,
+        user_info['user_id']
+    )
+
+    return {"result": notif_nr}
+
+
 @app.post("/friend_req")
 async def friend_req(req: AcceptDeclineFriendReq, user_info: dict = Depends(verify_token)):
 
@@ -329,7 +346,6 @@ async def send_friend_req(req: FriendAddDeleteReq, user_info: dict = Depends(ver
 async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(verify_token)):
     if not req:
         return {"result": "empty request"}
-
     # transaction doesnt seem to work but oh well
     for entry in req:
         async with conn.transaction():
@@ -341,11 +357,10 @@ async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(ver
                 ($1, $2, $3, $4);
                 """,
                     user_info['user_id'], datetime.strptime(
-                        entry.timestamp,), entry.latitude, entry.longitude
+                        entry.timestamp, '%Y-%m-%d %H:%M:%S.%f'), entry.latitude, entry.longitude
                 )
             except Exception:
                 return {"result": "error"}
-
     # get latest ts and return it
     latest_ts = await conn.fetchval(
         """
