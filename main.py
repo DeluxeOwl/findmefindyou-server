@@ -236,7 +236,7 @@ async def get_friends(user_info: dict = Depends(verify_token)):
 
 
 @app.get("/pending_friends")
-async def get_friends(user_info: dict = Depends(verify_token)):
+async def get_pending_friends(user_info: dict = Depends(verify_token)):
     res = await conn.fetch(
         """
         select usr.display_name, usr.avatar_url, pf.sent_at from pending_friends pf
