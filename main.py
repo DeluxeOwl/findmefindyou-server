@@ -119,6 +119,8 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     start_date = None
     end_date = None
 
+    final_dict = None
+
     query_string = """
     select distinct(coord.ts), coord.latitude, coord.longitude
         from users usr
@@ -160,7 +162,10 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
             "and coord.ts >= $3 order by ts",
             user_info['user_id'], req.friend_name, start_date
         )
-        return [dict(entry) for entry in res]
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
 
     if start_date and end_date:
         res = await conn.fetch(
@@ -168,7 +173,10 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
             'and coord.ts >= $3 and coord.ts <= $4 order by ts',
             user_info['user_id'], req.friend_name, start_date, end_date
         )
-        return [dict(entry) for entry in res]
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
 
     # get maximum from the last 7 days
     res = await conn.fetch(
