@@ -17,6 +17,10 @@ class FriendAddDeleteReq(BaseModel):
     friend_name: str
 
 
+class RecoverAccReq(BaseModel):
+    unique_key: str
+
+
 class AcceptDeclineFriendReq(BaseModel):
     friend_name: str
     action: str

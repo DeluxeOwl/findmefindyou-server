@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 
 from models.request_models import (AccountReq, FriendCoordReq, FriendAddDeleteReq,
-                                   UploadCoordReq, AcceptDeclineFriendReq)
+                                   UploadCoordReq, AcceptDeclineFriendReq, RecoverAccReq)
 
 from typing import List
 
@@ -180,6 +180,21 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     for entry in res_dict:
         entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
     return res_dict
+
+
+@app.post("/recover_account")
+async def recover_account(req: RecoverAccReq):
+    display_name = await conn.fetchval(
+        """
+        select display_name from users where unique_key = $1;
+        """,
+        req.unique_key
+    )
+
+    if display_name is None:
+        return {"result": "error"}
+
+    return {"result": display_name}
 
 
 @app.delete("/delete_friend")
