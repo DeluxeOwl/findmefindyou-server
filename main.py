@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 
 from models.request_models import (AccountReq, FriendCoordReq, FriendAddDeleteReq,
-                                   UploadCoordReq, AcceptDeclineFriendReq, RecoverAccReq)
+                                   UploadCoordReq, AcceptDeclineFriendReq, RecoverAccReq, DateStartEndReq)
 
 from typing import List
 
@@ -113,13 +113,84 @@ async def get_avatar(user_info: dict = Depends(verify_token)):
     return {"avatar_url": user_info["avatar_url"]}
 
 
+@app.post("/my_coords")
+async def get_my_coords(req: DateStartEndReq, user_info: dict = Depends(verify_token)):
+    start_date = None
+    end_date = None
+
+    query_string = """
+    select distinct(coord.ts), coord.latitude, coord.longitude
+        from users usr
+        inner join coordinates coord
+        on usr.user_id = coord.user_id
+    where usr.display_name = $1
+    """
+
+    # check if parameters are provided
+    # try to parse the dates
+    # check if start_time is greater than one week ago
+    # return nothing if so
+    print(user_info)
+
+    if req.start_date:
+        try:
+            start_date = datetime.strptime(
+                req.start_date, '%Y-%m-%d %H:%M:%S.%f')
+            if datetime.now() - start_date > timedelta(days=7):
+                return []
+        except ValueError:
+            print("error when parsing start_date")
+            return []
+
+    if req.end_date:
+        try:
+            end_date = datetime.strptime(
+                req.end_date, '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            print("error when parsing end_date")
+            return []
+
+    if start_date and end_date is None:
+        res = await conn.fetch(
+            query_string +
+            "and coord.ts >= $2 order by ts",
+            user_info['display_name'], start_date
+        )
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
+
+    if start_date and end_date:
+        res = await conn.fetch(
+            query_string +
+            'and coord.ts >= $2 and coord.ts <= $3 order by ts',
+            user_info['display_name'],  start_date, end_date
+        )
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
+
+    # get maximum from the last 7 days
+    res = await conn.fetch(
+        query_string +
+        "and coord.ts > NOW() - INTERVAL '7 days' order by ts",
+        user_info['display_name']
+    )
+    res_dict = [dict(entry) for entry in res]
+    for entry in res_dict:
+        entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+    return res_dict
+
+    pass
+
+
 @app.post("/friend_coords")
 async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
 
     start_date = None
     end_date = None
-
-    final_dict = None
 
     query_string = """
     select distinct(coord.ts), coord.latitude, coord.longitude
@@ -137,6 +208,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     # try to parse the dates
     # check if start_time is greater than one week ago
     # return nothing if so
+    print(user_info)
 
     if req.start_date:
         try:
@@ -188,6 +260,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     for entry in res_dict:
         entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
     return res_dict
+
 
 
 @app.post("/recover_account")
