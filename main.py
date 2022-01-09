@@ -136,7 +136,7 @@ async def get_my_coords(req: DateStartEndReq, user_info: dict = Depends(verify_t
         try:
             start_date = datetime.strptime(
                 req.start_date, '%Y-%m-%d %H:%M:%S.%f')
-            if datetime.now() - start_date > timedelta(days=7):
+            if datetime.now() - start_date >= timedelta(days=8):
                 return []
         except ValueError:
             print("error when parsing start_date")
@@ -214,7 +214,7 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
         try:
             start_date = datetime.strptime(
                 req.start_date, '%Y-%m-%d %H:%M:%S.%f')
-            if datetime.now() - start_date > timedelta(days=7):
+            if datetime.now() - start_date >= timedelta(days=8):
                 return []
         except ValueError:
             print("error when parsing start_date")
