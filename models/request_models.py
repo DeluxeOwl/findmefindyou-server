@@ -7,11 +7,29 @@ class AccountReq(BaseModel):
     unique_key: str
 
 
-class FriendCoordReq(BaseModel):
-    friend_name: str
+class DateStartEndReq(BaseModel):
     start_date: Optional[str]
     end_date: Optional[str]
 
 
-class FriendDeleteReq(BaseModel):
+class FriendCoordReq(DateStartEndReq):
     friend_name: str
+
+
+class FriendAddDeleteReq(BaseModel):
+    friend_name: str
+
+
+class RecoverAccReq(BaseModel):
+    unique_key: str
+
+
+class AcceptDeclineFriendReq(BaseModel):
+    friend_name: str
+    action: str
+
+
+class UploadCoordReq(BaseModel):
+    timestamp: str
+    latitude: float
+    longitude: float

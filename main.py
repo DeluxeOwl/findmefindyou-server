@@ -11,7 +11,10 @@ from fastapi import (Depends, FastAPI, File, Header, HTTPException, UploadFile,
 from fastapi.staticfiles import StaticFiles
 from nanoid import generate
 
-from models.request_models import AccountReq, FriendCoordReq, FriendDeleteReq
+from models.request_models import (AccountReq, FriendCoordReq, FriendAddDeleteReq,
+                                   UploadCoordReq, AcceptDeclineFriendReq, RecoverAccReq, DateStartEndReq)
+
+from typing import List
 
 config = dotenv_values(".env")
 app = FastAPI()
@@ -39,6 +42,8 @@ async def verify_token(x_key: str = Header(None)):
     return dict(res)
 
 
+# TODO: yeah, I got some weird error once about not being able to execute multiple operations
+# should use a pool
 @app.on_event('startup')
 async def startup():
     """
@@ -108,34 +113,30 @@ async def get_avatar(user_info: dict = Depends(verify_token)):
     return {"avatar_url": user_info["avatar_url"]}
 
 
-@app.post("/friend_coords")
-async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
-
+@app.post("/my_coords")
+async def get_my_coords(req: DateStartEndReq, user_info: dict = Depends(verify_token)):
     start_date = None
     end_date = None
 
     query_string = """
-    select coord.ts, coord.latitude, coord.longitude
+    select distinct(coord.ts), coord.latitude, coord.longitude
         from users usr
         inner join coordinates coord
         on usr.user_id = coord.user_id
-    where usr.user_id in
-        (select f.friend_id
-        from friends f
-        where f.user_id = $1)
-    and usr.display_name = $2
+    where usr.display_name = $1
     """
 
     # check if parameters are provided
     # try to parse the dates
     # check if start_time is greater than one week ago
     # return nothing if so
+    print(user_info)
 
     if req.start_date:
         try:
             start_date = datetime.strptime(
                 req.start_date, '%Y-%m-%d %H:%M:%S.%f')
-            if datetime.now() - start_date > timedelta(days=7):
+            if datetime.now() - start_date >= timedelta(days=8):
                 return []
         except ValueError:
             print("error when parsing start_date")
@@ -152,30 +153,133 @@ async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verif
     if start_date and end_date is None:
         res = await conn.fetch(
             query_string +
-            "and coord.ts >= $3",
-            user_info['user_id'], req.friend_name, start_date
+            "and coord.ts >= $2 order by ts",
+            user_info['display_name'], start_date
         )
-        return [dict(entry) for entry in res]
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
 
     if start_date and end_date:
         res = await conn.fetch(
             query_string +
-            'and coord.ts >= $3 and coord.ts <= $4',
-            user_info['user_id'], req.friend_name, start_date, end_date
+            'and coord.ts >= $2 and coord.ts <= $3 order by ts',
+            user_info['display_name'],  start_date, end_date
         )
-        return [dict(entry) for entry in res]
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
 
     # get maximum from the last 7 days
     res = await conn.fetch(
         query_string +
-        "and coord.ts > NOW() - INTERVAL '7 days'",
+        "and coord.ts > NOW() - INTERVAL '7 days' order by ts",
+        user_info['display_name']
+    )
+    res_dict = [dict(entry) for entry in res]
+    for entry in res_dict:
+        entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+    return res_dict
+
+    pass
+
+
+@app.post("/friend_coords")
+async def get_friend_coords(req: FriendCoordReq, user_info: dict = Depends(verify_token)):
+
+    start_date = None
+    end_date = None
+
+    query_string = """
+    select distinct(coord.ts), coord.latitude, coord.longitude
+        from users usr
+        inner join coordinates coord
+        on usr.user_id = coord.user_id
+    where usr.user_id in
+        (select f.friend_id
+        from friends f
+        where f.user_id = $1)
+    and usr.display_name = $2
+    """
+
+    # check if parameters are provided
+    # try to parse the dates
+    # check if start_time is greater than one week ago
+    # return nothing if so
+    print(user_info)
+
+    if req.start_date:
+        try:
+            start_date = datetime.strptime(
+                req.start_date, '%Y-%m-%d %H:%M:%S.%f')
+            if datetime.now() - start_date >= timedelta(days=8):
+                return []
+        except ValueError:
+            print("error when parsing start_date")
+            return []
+
+    if req.end_date:
+        try:
+            end_date = datetime.strptime(
+                req.end_date, '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            print("error when parsing end_date")
+            return []
+
+    if start_date and end_date is None:
+        res = await conn.fetch(
+            query_string +
+            "and coord.ts >= $3 order by ts",
+            user_info['user_id'], req.friend_name, start_date
+        )
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
+
+    if start_date and end_date:
+        res = await conn.fetch(
+            query_string +
+            'and coord.ts >= $3 and coord.ts <= $4 order by ts',
+            user_info['user_id'], req.friend_name, start_date, end_date
+        )
+        res_dict = [dict(entry) for entry in res]
+        for entry in res_dict:
+            entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+        return res_dict
+
+    # get maximum from the last 7 days
+    res = await conn.fetch(
+        query_string +
+        "and coord.ts > NOW() - INTERVAL '7 days' order by ts",
         user_info['user_id'], req.friend_name
     )
-    return [dict(entry) for entry in res]
+    res_dict = [dict(entry) for entry in res]
+    for entry in res_dict:
+        entry['ts'] = ' '.join(str(entry['ts']).split('T'))[:-3]
+    return res_dict
+
+
+
+@app.post("/recover_account")
+async def recover_account(req: RecoverAccReq):
+    display_name = await conn.fetchval(
+        """
+        select display_name from users where unique_key = $1;
+        """,
+        req.unique_key
+    )
+
+    if display_name is None:
+        return {"result": "error"}
+
+    return {"result": display_name}
 
 
 @app.delete("/delete_friend")
-async def delete_friend(req: FriendDeleteReq, user_info: dict = Depends(verify_token)):
+async def delete_friend(req: FriendAddDeleteReq, user_info: dict = Depends(verify_token)):
     # this is bad practice, you should do it in a transaction
     async with conn.transaction():
         friend_id = await conn.fetchval(
@@ -230,7 +334,7 @@ async def get_friends(user_info: dict = Depends(verify_token)):
 
 
 @app.get("/pending_friends")
-async def get_friends(user_info: dict = Depends(verify_token)):
+async def get_pending_friends(user_info: dict = Depends(verify_token)):
     res = await conn.fetch(
         """
         select usr.display_name, usr.avatar_url, pf.sent_at from pending_friends pf
@@ -240,8 +344,132 @@ async def get_friends(user_info: dict = Depends(verify_token)):
         """,
         user_info['user_id']
     )
+    res_dict = [dict(entry) for entry in res]
 
-    return [dict(entry) for entry in res]
+    for entry in res_dict:
+        entry['sent_at'] = ' '.join(str(entry['sent_at']).split('T'))[:-3]
+    return res_dict
+
+
+@app.get("/pending_friends_number")
+async def get_pending_friends_number(user_info: dict = Depends(verify_token)):
+    notif_nr = await conn.fetchval(
+        """
+        select count(*) from pending_friends pf
+            inner join users usr
+            on pf.sender_id = usr.user_id
+        where pf.receiver_id = $1;
+        """,
+        user_info['user_id']
+    )
+
+    return {"result": notif_nr}
+
+
+@app.post("/friend_req")
+async def friend_req(req: AcceptDeclineFriendReq, user_info: dict = Depends(verify_token)):
+
+    if req.action != 'accept' and req.action != 'decline':
+        print("got here")
+        return {"result": "error"}
+
+    sender_id = await conn.fetchval(
+        """
+        select p.sender_id from pending_friends p
+            inner join users u
+            on u.user_id = p.sender_id
+        where p.receiver_id = $1 and u.display_name = $2
+        """,
+        user_info['user_id'], req.friend_name
+    )
+
+    if sender_id is None:
+        return {"result": "error"}
+    async with conn.transaction():
+        if req.action == 'accept':
+            await conn.execute(
+                """
+                delete from pending_friends
+                where receiver_id = $1 and sender_id = $2
+                """,
+                user_info['user_id'], sender_id
+            )
+            await conn.execute(
+                """
+                insert into friends (user_id, friend_id)
+                values
+                ($1, $2),
+                ($2, $1);
+                """,
+                user_info['user_id'], sender_id
+            )
+        if req.action == 'decline':
+            await conn.execute(
+                """
+                delete from pending_friends
+                where receiver_id = $1 and sender_id = $2
+                """,
+                user_info['user_id'], sender_id
+            )
+
+    return {"result": "ok"}
+
+
+@app.post("/send_friend_req")
+async def send_friend_req(req: FriendAddDeleteReq, user_info: dict = Depends(verify_token)):
+    receiver_id = await conn.fetchval(
+        """
+        select user_id 
+        from users
+        where display_name = $1
+        """,
+        req.friend_name
+    )
+    if receiver_id is None:
+        return {"result": "error"}
+    await conn.execute(
+        """
+        insert into pending_friends (receiver_id, sender_id, sent_at)
+        values ($1, $2, $3)
+        """,
+        receiver_id, user_info['user_id'], datetime.now()
+    )
+
+    return {"result": "ok"}
+
+
+@app.post("/upload_coords")
+async def upload_coords(req: List[UploadCoordReq], user_info: dict = Depends(verify_token)):
+    if not req:
+        return {"result": "empty request"}
+    # transaction doesnt seem to work but oh well
+    for entry in req:
+        async with conn.transaction():
+            try:
+                await conn.execute(
+                    """
+                insert into coordinates (user_id, ts, latitude, longitude)
+                values
+                ($1, $2, $3, $4);
+                """,
+                    user_info['user_id'], datetime.strptime(
+                        entry.timestamp, '%Y-%m-%d %H:%M:%S.%f'), entry.latitude, entry.longitude
+                )
+            except Exception:
+                return {"result": "error"}
+    # get latest ts and return it
+    latest_ts = await conn.fetchval(
+        """
+        select ts from coordinates 
+            where user_id = $1 
+        order by coord_id desc 
+        limit 1;
+        """,
+        user_info['user_id']
+    )
+    # date 'parsing' lmao ⟶ gives the date like this 2022-01-07 14:00:00.685
+    latest_ts = ' '.join(str(latest_ts).split('T'))[:-3]
+    return {"result": latest_ts}
 
 
 @app.get("/")
